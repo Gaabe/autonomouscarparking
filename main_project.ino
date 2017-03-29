@@ -8,17 +8,17 @@
 const int motor_pwm_pin = 4;
 const int motor_dir1_pin = 26;
 const int motor_dir2_pin = 27;
-const int sensor1_trig_pin = 28;  //Back sensor 1
+const int sensor1_trig_pin = 28;  //Unused sensor
 const int sensor1_echo_pin = 29;
-const int sensor2_trig_pin = 30;  //Back sensor 2
+const int sensor2_trig_pin = 30;  //Unused sensor
 const int sensor2_echo_pin = 31;
-const int sensor3_trig_pin = 32;  //Front sensor 1
+const int sensor3_trig_pin = 32;  //Unused sensor
 const int sensor3_echo_pin = 33;
-const int sensor4_trig_pin = 36;  //Front sensor 2
+const int sensor4_trig_pin = 36;  //Front sensor
 const int sensor4_echo_pin = 37;
-const int sensor5_trig_pin = 38;  //Side sensor 1
+const int sensor5_trig_pin = 38;  //Side sensor
 const int sensor5_echo_pin = 39;
-const int sensor6_trig_pin = 40;  //Side sensor 2
+const int sensor6_trig_pin = 40;  //Back sensor
 const int sensor6_echo_pin = 41;
 const int servo_pin = 34;
 const int inductive_sensor1_pin = 2;
@@ -28,11 +28,11 @@ const int button_pin = 42;
 //Constants being used
 const int MAX_DISTANCE = 150; //Max distance for the ultrasonic sensor
 const double wheel_circunference = 0.4; //Radius of the wheel in meters
-const double parking_space_needed = 0.3;  //parking space needed in meters, should be around 0.8
+const double parking_space_needed = 0.5;  //parking space needed in meters, should be around 0.8
 
 //Other global variables initialization
 double desired_speed = 0.5; //Desired speed in m/s
-int motor_speed = 160;
+int motor_speed = 170;
 long distance1 = 0;
 long distance2 = 0;
 long distance3 = 0;
@@ -46,7 +46,7 @@ volatile long one_twentieth_revolutions1 = 0;
 volatile long one_twentieth_revolutions2 = 0;
 volatile int rotation_difference = 0;
 float current_speed = 0.5f;
-int servo_straight_angle = 85;
+int servo_straight_angle = 90;
 int eeAddress = 0;   //Location we want the data to be put.
 
 
@@ -58,7 +58,7 @@ NewPing sonar5(sensor5_trig_pin, sensor5_echo_pin, MAX_DISTANCE);
 NewPing sonar6(sensor6_trig_pin, sensor6_echo_pin, MAX_DISTANCE);
 Servo servo;
 
-//Get distances from all the ultrasonic sensors, sensors from 1 to 4 are not being used
+//Get distances from all the ultrasonic sensors, sensors from 1 to 3 are not being used
 void getAllDistances(){
   // distance1 = sonar1.ping_cm();
   // distance2 = sonar2.ping_cm();
@@ -125,52 +125,43 @@ void preDefinedparalelPark(){
 //Parks the car in the detected parking spot using the sensors
 void sensoredParalelPark(){
   // servo.write(servo_straight_angle + 30);
-  servo.write(120);
+  servo.write(130);
   delay(500);
   getAllDistances();
-  while(distance5 < 120 and distance5 != 0){
+  while(distance5 < 140 and distance5 != 0){
     moveBackwards();
     getAllDistances();
   }
-  moveBackwards();
+  delay(600);
+  while(distance5 < 140 and distance5 != 0){
+    moveBackwards();
+    getAllDistances();
+  }
+  brake();
+  delay(1000);
+  brake();
+  delay(1000);
+  servo.write(50);
   delay(400);
-  while(distance5 < 120 and distance5 != 0){
+  while(distance6 > 15 or distance6 == 0){
     moveBackwards();
     getAllDistances();
   }
   brake();
   delay(1000);
-  // servo.write(90);
-  // delay(500);
-  // while(distance6 > 15 or distance6 == 0){
-  //   moveBackwards();
-  //   getAllDistances();
-  //   Serial.println("second move");
-  // }
-  brake();
-  delay(1000);
-  servo.write(60);
-  while(distance6 > 12 or distance6 == 0){
-    moveBackwards();
-    getAllDistances();
-  }
-  brake();
-  delay(1000);
-  servo.write(120);
-  delay(400);
+  servo.write(130);
+  delay(500);
   moveForward();
+  delay(1350);
+  brake();
   delay(400);
   servo.write(90);
   delay(400);
-  while(distance4 > 20 or distance4 == 0){
+  while(distance4 > 30 or distance4 == 0){
     moveForward();
     getAllDistances();
   }
-  // servo.write(servo_straight_angle + 30);
-  // delay(500);
-  // moveForward();
-  // delay(1000);
-  // brake();
+  brake();
   digitalWrite(13, HIGH);
 }
 
@@ -200,6 +191,7 @@ void findAndPark(){
   }
   float time_delta = (millis() - initial_time)/1000.00f;
   parking_space_measured = time_delta * current_speed;
+  delay(300);
   brake();
 
   //Save the values measured to the EEPROM for later analysis
@@ -208,9 +200,6 @@ void findAndPark(){
   EEPROM.put(eeAddress, parking_space_measured);
   eeAddress += sizeof(float);
 
-  Serial.print("Parking space = ");
-  Serial.print(parking_space_measured, 4);
-  Serial.println(" written to eeprom");
   if (parking_space_measured >= parking_space_needed) {
     delay(3000);
     sensoredParalelPark();
@@ -312,10 +301,11 @@ void setup() {
 }
 
 void loop() {
+  servo.write(servo_straight_angle);
   //When button is pressed, run the parking code
   if (digitalRead(button_pin)) {
     delay(3000);
-    // findAndPark();
-    sensoredParalelPark();
+    findAndPark();
+    // sensoredParalelPark();
   }
 }
